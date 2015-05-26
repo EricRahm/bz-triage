@@ -22,7 +22,7 @@ TRIAGE_CSV = ("https://bugzilla.mozilla.org/buglist.cgi?bug_status=UNCONFIRMED&"
               "status_whiteboard=MemShrink%5B%5E%3A%5D&"
               "status_whiteboard_type=regexp&ctype=csv&human=1")
 
-SHORT_URL_FMT = "http://bugzil.la/%s"
+SHORT_URL_FMT = "https://bugzil.la/%s"
 
 # Mapping of bugzilla name to IRC nick for memshrink team members.
 MEMSHRINKERS = { 
