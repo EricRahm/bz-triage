@@ -90,10 +90,11 @@ def generate_triage_text(triage_csv_url, triage_header, triage_bugzilla_url=None
     triage_list = r.text
     #triage_list = MOCK_INPUT
     reader = csv.DictReader(StringIO.StringIO(triage_list))
+    result = sorted(reader, key=lambda d: int(d['Bug ID']))
 
     bz_names = set(team_mapping.iterkeys())
 
-    for row in reader:
+    for row in result:
         print SHORT_URL_FMT % row['Bug ID']
         print "%(Bug ID)s - %(Product)s :: %(Component)s - %(Summary)s" % row
         print "Votes:"
