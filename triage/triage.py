@@ -35,26 +35,25 @@ MEMSHRINKERS = {
 }
 
 
-TRIAGE_HEADER = """Agenda
-======
-(Add name and topic to discuss here)
+TRIAGE_HEADER = """### Agenda ###
 
-Bug List
-========
+_(Add name and topic to discuss here)_
+
+### Bug List ###
+
 Vote for:
-  - P1: High importance, will follow up periodically
-  - P2: Important issue, possibly already being worked on
-  - P3: Real issue, someone will get to it if they have time
-  - moreinfo: We need logs, or clarifying information
-  - invalid: Misclassified, remove the MemShrink tag
+
+- **P1** High importance, will follow up periodically
+- **P2** Important issue, possibly already being worked on
+- **P3** Real issue, someone will get to it if they have time
+- **moreinfo** We need logs, or clarifying information
+- **invalid** Misclassified, remove the MemShrink tag
 """
 
 TRIAGE_URL = "http://mzl.la/1yYeaGL"
 
 TRIAGE_URL_TEMPLATE = """
-Triage URL
-==========
-%s
+**Triage URL:** [%s](%s)
 """
 
 def get_commentors(bug_id):
@@ -76,11 +75,11 @@ def generate_triage_text(triage_csv_url, triage_header, triage_bugzilla_url=None
                               provided this will be used to specifically call on team members
                               who have been involved in a given bug.
     """
-    
-    print "MemShrink triage: %s" % str(datetime.date.today())
+
+    print "**MemShrink triage:** %s" % str(datetime.date.today())
 
     if triage_bugzilla_url:
-        print TRIAGE_URL_TEMPLATE % triage_bugzilla_url
+        print TRIAGE_URL_TEMPLATE % (triage_bugzilla_url, triage_bugzilla_url)
 
     if triage_header:
         print triage_header
@@ -94,10 +93,14 @@ def generate_triage_text(triage_csv_url, triage_header, triage_bugzilla_url=None
 
     bz_names = set(team_mapping.iterkeys())
 
+    print "%d bugs to triage" % len(result)
+    print ""
+
     for row in result:
-        print SHORT_URL_FMT % row['Bug ID']
-        print "%(Bug ID)s - %(Product)s :: %(Component)s - %(Summary)s" % row
-        print "Votes:"
+        row['Bug URL'] = SHORT_URL_FMT % row['Bug ID']
+        print "-   [%(Bug ID)s](%(Bug URL)s) - %(Product)s :: %(Component)s - %(Summary)s" % row
+        print "    "
+        print "    Votes:"
         print ""
 
         # Create list of users who reported, commented, or are assigned the bug
@@ -107,8 +110,10 @@ def generate_triage_text(triage_csv_url, triage_header, triage_bugzilla_url=None
         team_members = bug_users & bz_names 
         if team_members:
             nicks = [ team_mapping[x] for x in team_members ]
-            print "%s, what do you think?" % ", ".join(nicks)
+            print "    %s, what do you think?" % ", ".join(nicks)
             print ""
+
+        print ""
 
 if __name__ == "__main__":
     generate_triage_text(TRIAGE_CSV, TRIAGE_HEADER, TRIAGE_URL, MEMSHRINKERS)
