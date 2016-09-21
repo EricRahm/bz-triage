@@ -5,6 +5,7 @@
 
 import csv
 import datetime
+import markdown
 import requests
 import StringIO
 
@@ -25,7 +26,7 @@ TRIAGE_CSV = ("https://bugzilla.mozilla.org/buglist.cgi?bug_status=UNCONFIRMED&"
 SHORT_URL_FMT = "https://bugzil.la/%s"
 
 # Mapping of bugzilla name to IRC nick for memshrink team members.
-MEMSHRINKERS = { 
+MEMSHRINKERS = {
         "erahm": "erahm",
         "n.nethercote": "njn",
         "nfroyd": "froydnj",
@@ -59,13 +60,13 @@ TRIAGE_URL_TEMPLATE = """
 def get_commentors(bug_id):
     """Gets the bz names of commentors on the given bug"""
     response = requests.get(COMMENTS_REST_QUERY % bug_id).json()
-    bug_comments = response['bugs'][bug_id]['comments'] 
+    bug_comments = response['bugs'][bug_id]['comments']
     return set( x['creator'].split('@')[0] for x in bug_comments )
 
 
 def generate_triage_text(triage_csv_url, triage_header, triage_bugzilla_url=None, team_mapping=None):
     """
-    Prints out a summary useful for triaging bugs via a multiuser text editor such as etherpad.
+    Builds a summary useful for triaging bugs via a multiuser text editor such as etherpad.
 
     :param triage_csv_url: URL to a bugzilla csv query. This should be configured to have:
                            Bug ID''Product', 'Component', 'Summary', and 'Reporter' fields.
@@ -76,44 +77,59 @@ def generate_triage_text(triage_csv_url, triage_header, triage_bugzilla_url=None
                               who have been involved in a given bug.
     """
 
-    print "**MemShrink triage:** %s" % str(datetime.date.today())
+    triage = []
+    triage.append("**MemShrink triage:** %s" % str(datetime.date.today()))
 
     if triage_bugzilla_url:
-        print TRIAGE_URL_TEMPLATE % (triage_bugzilla_url, triage_bugzilla_url)
+        triage.append(TRIAGE_URL_TEMPLATE % (triage_bugzilla_url, triage_bugzilla_url))
 
     if triage_header:
-        print triage_header
+        triage.append(triage_header)
 
     # TODO(ER): possibly set stream=true in the get, and use r.content
     r = requests.get(triage_csv_url)
     triage_list = r.text
     #triage_list = MOCK_INPUT
-    reader = csv.DictReader(StringIO.StringIO(triage_list))
+    print triage_list
+    reader = UnicodeDictReader(StringIO.StringIO(triage_list))
+    #reader = UnicodeDictReader(StringIO.StringIO(r.content))
+
     result = sorted(reader, key=lambda d: int(d['Bug ID']))
 
     bz_names = set(team_mapping.iterkeys())
 
-    print "%d bugs to triage" % len(result)
-    print ""
+    triage.append("%d bugs to triage" % len(result))
+    triage.append("")
 
-    for row in result:
+    bugs = [x['Bug ID'] for x in result]
+    from multiprocessing import Pool
+    pool = Pool(processes=12)
+    commentors_list = pool.map(get_commentors, bugs)
+
+    for (row, commentors) in zip(result, commentors_list):
         row['Bug URL'] = SHORT_URL_FMT % row['Bug ID']
-        print "-   [%(Bug ID)s](%(Bug URL)s) - %(Product)s :: %(Component)s - %(Summary)s" % row
-        print "    "
-        print "    Votes:"
-        print ""
+        triage.append("-   [%(Bug ID)s](%(Bug URL)s) - %(Product)s :: %(Component)s - %(Summary)s" % row)
+        triage.append("    ")
+        triage.append("    Votes:")
+        triage.append("")
 
         # Create list of users who reported, commented, or are assigned the bug
-        bug_users = get_commentors(row['Bug ID'])
-        bug_users.update( (row['Assignee'], row['Reporter']) ) 
+        bug_users = commentors #get_commentors(row['Bug ID'])
+        bug_users.update( (row['Assignee'], row['Reporter']) )
 
-        team_members = bug_users & bz_names 
+        team_members = bug_users & bz_names
         if team_members:
             nicks = [ team_mapping[x] for x in team_members ]
-            print "    %s, what do you think?" % ", ".join(nicks)
-            print ""
+            triage.append("    %s, what do you think?" % ", ".join(nicks))
+            triage.append("")
 
-        print ""
+        triage.append("")
+
+    return "\n".join(triage)
 
 if __name__ == "__main__":
-    generate_triage_text(TRIAGE_CSV, TRIAGE_HEADER, TRIAGE_URL, MEMSHRINKERS)
+    triage = generate_triage_text(TRIAGE_CSV, TRIAGE_HEADER, TRIAGE_URL, MEMSHRINKERS)
+    import markdown
+    html = markdown.markdown(triage)
+    with open("triage.html", "w") as f:
+        f.write(html)
