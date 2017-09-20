@@ -1,13 +1,19 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+from __future__ import print_function
+#from future import standard_library
+#standard_library.install_aliases()
+from builtins import zip
+from builtins import str
 
 import csv
 import datetime
 import markdown
 import requests
-import StringIO
+import io
 
 MOCK_INPUT='''"Bug ID","Product","Component","Reporter","Assignee","Status","Resolution","Summary","Changed"
 1147674,"Firefox","Untriaged","taylor.a.huston","nobody","UNCONFIRMED","---","Memory leaks in Firefox Developer Edition x64","2015-04-14 13:06:29"
@@ -90,13 +96,13 @@ def generate_triage_text(triage_csv_url, triage_header, triage_bugzilla_url=None
     r = requests.get(triage_csv_url)
     triage_list = r.text
     #triage_list = MOCK_INPUT
-    print triage_list
-    reader = UnicodeDictReader(StringIO.StringIO(triage_list))
+    print(triage_list)
+    reader = csv.DictReader(io.StringIO(triage_list))
     #reader = UnicodeDictReader(StringIO.StringIO(r.content))
 
     result = sorted(reader, key=lambda d: int(d['Bug ID']))
 
-    bz_names = set(team_mapping.iterkeys())
+    bz_names = set(team_mapping.keys())
 
     triage.append("%d bugs to triage" % len(result))
     triage.append("")
